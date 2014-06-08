@@ -15,6 +15,7 @@ namespace Wj.Math
         public const ulong DoubleBase = 10000000000000000;
         public static readonly Rational One = new Rational(1, 1, true);
         public static readonly Rational Zero = new Rational(0, 1, true);
+        public static readonly Rational MinusOne = new Rational(-1, 1, true);
 
         #region Basic Operators
 

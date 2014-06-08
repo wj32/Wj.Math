@@ -10,10 +10,12 @@ namespace Test
     {
         static void Main(string[] args)
         {
-            DFTForm form = new DFTForm();
+            //DFTForm form = new DFTForm();
 
-            System.Windows.Forms.Application.EnableVisualStyles();
-            System.Windows.Forms.Application.Run(form);
+            //System.Windows.Forms.Application.EnableVisualStyles();
+            //System.Windows.Forms.Application.Run(form);
+
+            TestSeries();
         }
 
         static void Stuff()
@@ -261,6 +263,11 @@ namespace Test
 
             test2D = test2.RationalCanonicalForm<RationalField>(out test2P, null);
             test2D = test2.JordanNormalForm(new Rational[] { 2, 5 }, out test2P, null);
+        }
+
+        static void TestSeries()
+        {
+            Series z = Series.One + 4;
         }
     }
 }

@@ -62,6 +62,7 @@
     <Compile Include="IIntegerTypeParameter.cs" />
     <Compile Include="ModuloField.cs" />
     <Compile Include="ModuloSpace.cs" />
+    <Compile Include="Series.cs" />
     <Compile Include="Vector.cs" />
     <Compile Include="Coding.cs" />
     <Compile Include="Complex.cs" />
