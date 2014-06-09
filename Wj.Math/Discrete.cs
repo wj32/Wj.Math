@@ -634,6 +634,78 @@ namespace Wj.Math
             return Partition(n, parts, false);
         }
 
+        public static IEnumerable<ArraySegment<int>> Partitions(int n, int atMostParts, int[] buffer)
+        {
+            // From http://jeromekelleher.net/partitions.php
+
+            if (buffer.Length < System.Math.Min(n, atMostParts) + 1)
+                throw new ArgumentException("buffer");
+
+            int[] a = buffer;
+            int k = 1;
+            int y = n - 1;
+            int x;
+            int j;
+
+            if (n == 0)
+            {
+                yield return new ArraySegment<int>(a, 0, 0);
+                yield break;
+            }
+            else if (atMostParts == 1)
+            {
+                a[0] = n;
+                yield return new ArraySegment<int>(a, 0, 1);
+                yield break;
+            }
+
+            while (k != 0)
+            {
+                x = a[k - 1] + 1;
+                k--;
+
+                while (x * 2 <= y && k + 2 < atMostParts)
+                {
+                    a[k] = x;
+                    y -= x;
+                    k++;
+                }
+
+                j = k + 1;
+
+                while (x <= y)
+                {
+                    a[k] = x;
+                    a[j] = y;
+                    yield return new ArraySegment<int>(a, 0, k + 2);
+                    x++;
+                    y--;
+                }
+
+                a[k] = x + y;
+                y = x + y - 1;
+
+                yield return new ArraySegment<int>(a, 0, k + 1);
+            }
+        }
+
+        public static IEnumerable<int[]> Partitions(int n, int atMostParts)
+        {
+            int[] buffer = new int[System.Math.Min(n, atMostParts) + 1];
+
+            return Partitions(n, atMostParts, buffer).Select(segment =>
+            {
+                int[] result = new int[segment.Count];
+                Array.Copy(segment.Array, segment.Offset, result, 0, segment.Count);
+                return result;
+            });
+        }
+
+        public static IEnumerable<int[]> Partitions(int n)
+        {
+            return Partitions(n, int.MaxValue);
+        }
+
         #endregion
 
         #region Primes

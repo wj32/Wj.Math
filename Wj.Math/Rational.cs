@@ -330,7 +330,11 @@ namespace Wj.Math
             _top = top;
             _bottom = bottom;
 
-            if (bottom < 0)
+            if (bottom == 0)
+            {
+                throw new DivideByZeroException();
+            }
+            else if (bottom < 0)
             {
                 _top = -_top;
                 _bottom = -_bottom;
