@@ -470,6 +470,12 @@ namespace Wj.Math
 
         public Series(Func<int, Series, Rational> compute, int order = 0, int degree = InfinityDegree, bool cache = false)
         {
+            if (order > degree)
+            {
+                order = InfinityDegree;
+                degree = MinusInfinityDegree;
+            }
+
             _compute = compute;
             _order = order;
             _degree = degree;
