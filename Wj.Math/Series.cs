@@ -810,9 +810,12 @@ namespace Wj.Math
                 if (n == 0)
                     return a0inv;
 
-                // If the previous terms have all been computed, use the recursive
-                // formula. Otherwise, use the explicit formula.
-                if (s.IsComputedTo(n - 1))
+                // Always use the recursive formula because it is much faster.
+                s.ComputeTo(n - 1);
+
+                //// If the previous terms have all been computed, use the recursive
+                //// formula. Otherwise, use the explicit formula.
+                //if (s.IsComputedTo(n - 1))
                 {
                     int high = n;
                     Rational c = Rational.Zero;
@@ -827,19 +830,19 @@ namespace Wj.Math
 
                     return -a0inv * c;
                 }
-                else
-                {
-                    Rational m = a0inv;
-                    Rational c = Rational.Zero;
+                //else
+                //{
+                //    Rational m = a0inv;
+                //    Rational c = Rational.Zero;
 
-                    for (int i = 1; i <= n; i++)
-                    {
-                        m *= -a0inv;
-                        c += m * PowCoefficient(this, i, n, true);
-                    }
+                //    for (int i = 1; i <= n; i++)
+                //    {
+                //        m *= -a0inv;
+                //        c += m * PowCoefficient(this, i, n, true);
+                //    }
 
-                    return c;
-                }
+                //    return c;
+                //}
             }, order: 0, degree: this.Degree != 0 ? InfinityDegree : 0, cache: true);
         }
 
