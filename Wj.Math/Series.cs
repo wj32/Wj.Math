@@ -526,6 +526,9 @@ namespace Wj.Math
 
         public string ToString(int displayTerms)
         {
+            if (this.Order == InfinityOrder)
+                return "0";
+
             int low = this.Order;
             int high = System.Math.Min(this.Degree, this.Order + displayTerms - 1);
             StringBuilder sb = new StringBuilder();
