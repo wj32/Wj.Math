@@ -452,14 +452,18 @@ namespace Wj.Math
             _order = s._order;
             _degree = s._degree;
 
-            if (cache)
+            if (cache && s._cache != null)
             {
                 _cache = s._cache;
                 _cacheValidTo = s._cacheValidTo;
             }
             else
             {
-                _cache = null;
+                if (cache)
+                {
+                    _cache = new Rational[2];
+                }
+
                 _cacheValidTo = -1;
             }
         }
