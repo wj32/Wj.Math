@@ -221,8 +221,8 @@ namespace Wj.Math
                 Array.Copy(workList, 1, workList, 0, workList.Length - 1);
                 workList[workList.Length - 1] = dividList[i + workList.Length];
 
-                // Copy the divisor and multiply with the last quotient 
-                // coefficient. Add this to the work list. Note that this 
+                // Copy the divisor and multiply with the last quotient
+                // coefficient. Add this to the work list. Note that this
                 // is all done in one step.
                 for (int j = 0; j < workList.Length; j++)
                     workList[j] = field.Add(workList[j], field.Multiply(divisList[j], quotList[i]));
@@ -444,7 +444,7 @@ namespace Wj.Math
 
         #region Conversion
 
-        public static Polynomial<T, TField> FromCoefficientList(T[] list)
+        public static Polynomial<T, TField> FromCoefficientList(params T[] list)
         {
             List<Term<T>> terms = new List<Term<T>>(list.Length);
 
@@ -620,7 +620,7 @@ namespace Wj.Math
             {
                 return x;
             }
-            else       
+            else
             {
                 return
                     ((Legendre(n - 1, x) * x * (2 * n - 1)) -
@@ -908,7 +908,7 @@ namespace Wj.Math
                     }
                     else
                     {
-                        // Coefficient is zero. Shouldn't happen, but 
+                        // Coefficient is zero. Shouldn't happen, but
                         // since it did, we skip the term.
                         continue;
                     }

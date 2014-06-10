@@ -7,7 +7,7 @@ using System.Text;
 namespace Wj.Math
 {
     /// <summary>
-    /// Represents a formal power series f with rational coefficients a[n] for n=0,1,2,....
+    /// Represents a formal power series f(z) with rational coefficients a[n] for n=0,1,2,....
     /// </summary>
     public class Series
     {
@@ -20,6 +20,7 @@ namespace Wj.Math
         public static readonly Series One = new Series((n, s) => n == 0 ? Rational.One : Rational.Zero, order: 0, degree: 0);
         public static readonly Series Zero = new Series((n, s) => Rational.Zero, order: InfinityOrder, degree: MinusInfinityDegree);
         public static readonly Series Z = new Series((n, s) => n == 1 ? Rational.One : Rational.Zero, order: 1, degree: 1);
+        public static readonly Series Geometric = new Series((n, s) => Rational.One, order: 0, degree: InfinityDegree);
 
         #region Internal Functions
 
@@ -251,6 +252,14 @@ namespace Wj.Math
 
         #region Cast Operators
 
+        public static implicit operator Series(int k)
+        {
+            if (k == 0)
+                return Zero;
+
+            return new Series((n, s) => n == 0 ? new Rational(k, 1) : Rational.Zero, order: 0, degree: 0);
+        }
+
         public static implicit operator Series(Rational k)
         {
             if (k == Rational.Zero)
@@ -263,32 +272,14 @@ namespace Wj.Math
 
         #region Functions
 
-        /// <summary>
-        /// Generates the series f(g), where g has nonzero order.
-        /// </summary>
-        /// <param name="f">A series.</param>
-        /// <param name="g">A series with nonzero order.</param>
-        /// <returns>The series f(g).</returns>
-        public static Series Compose(Series f, Series g)
+        public static Series MultiplyPointwise(Series f, Series g)
         {
-            return new Series((n, s) =>
-            {
-                if (n == 0)
-                    return f[0];
+            return new Series((n, s) => f[n] * g[n], order: System.Math.Max(f.Order, g.Order), degree: System.Math.Min(f.Degree, g.Degree));
+        }
 
-                int high = n;
-                Rational c = Rational.Zero;
-
-                if (high > f.Degree)
-                    high = f.Degree;
-
-                for (int i = 1; i <= high; i++)
-                {
-                    c += f[i] * PowCoefficient(g, i, n, true);
-                }
-
-                return c;
-            }, ExtendedMultiply(f.Order, g.Order), ExtendedMultiply(f.Degree, g.Degree));
+        public static Series DividePointwise(Series f, Series g)
+        {
+            return new Series((n, s) => f[n] / g[n], order: f.Order, degree: f.Degree);
         }
 
         /// <summary>
@@ -341,9 +332,57 @@ namespace Wj.Math
 
         #region Basic Series
 
+        /// <summary>
+        /// Generates the series z^k.
+        /// </summary>
         public static Series ZPow(int k)
         {
             return new Series((n, s) => n == k ? Rational.One : Rational.Zero, order: k, degree: k);
+        }
+
+        public static Series Polynomial(params Rational[] coefficients)
+        {
+            int order = InfinityOrder;
+            int degree = MinusInfinityDegree;
+
+            for (int i = 0; i < coefficients.Length; i++)
+            {
+                if (coefficients[i] != Rational.Zero)
+                {
+                    order = i;
+                    break;
+                }
+            }
+
+            if (order != InfinityOrder)
+            {
+                degree = order;
+
+                for (int i = coefficients.Length - 1; i > order; i--)
+                {
+                    if (coefficients[i] != Rational.Zero)
+                    {
+                        degree = i;
+                        break;
+                    }
+                }
+            }
+
+            return new Series((n, s) =>
+            {
+                if (n > degree)
+                    return Rational.Zero;
+
+                return coefficients[n];
+            }, order: order, degree: degree);
+        }
+
+        /// <summary>
+        /// Generates the series (1+z)^r.
+        /// </summary>
+        public static Series Binomial(Rational r)
+        {
+            return Binomial(Rational.One, r);
         }
 
         /// <summary>
@@ -357,10 +396,47 @@ namespace Wj.Math
                 degree = (int)r.Top;
 
             if (a == Rational.One)
-                return new Series((n, s) => Discrete.Binomial(r, n), 0, degree);
+                return new Series((n, s) => Discrete.Binomial(r, n), order: 0, degree: degree);
             else
-                return new Series((n, s) => Rational.Pow(a, n) * Discrete.Binomial(r, n), 0, degree);
+                return new Series((n, s) => Rational.Pow(a, n) * Discrete.Binomial(r, n), order: 0, degree: degree);
         }
+
+        /// <summary>
+        /// The series exp(z).
+        /// </summary>
+        public static readonly Series Exp = new Series((n, s) => new Rational(1, Discrete.Factorial(n)), order: 0, degree: InfinityDegree);
+
+        /// <summary>
+        /// The series sin(z).
+        /// </summary>
+        public static readonly Series Sin = new Series(
+            (n, s) => (n % 2 != 0) ? Discrete.AlternateSign(new Rational(1, Discrete.Factorial(n)), (n - 1) / 2) : Rational.Zero,
+            order: 0, degree: InfinityDegree);
+
+        /// <summary>
+        /// The series cos(z).
+        /// </summary>
+        public static readonly Series Cos = new Series(
+            (n, s) => (n % 2 == 0) ? Discrete.AlternateSign(new Rational(1, Discrete.Factorial(n)), n / 2) : Rational.Zero,
+            order: 0, degree: InfinityDegree);
+
+        /// <summary>
+        /// The series arctan(z).
+        /// </summary>
+        public static readonly Series ArcTan = new Series(
+            (n, s) => (n % 2 != 0) ? Discrete.AlternateSign(new Rational(1, n), (n - 1) / 2) : Rational.Zero,
+            order: 0, degree: InfinityDegree);
+
+        /// <summary>
+        /// The series log(1+z).
+        /// </summary>
+        public static readonly Series Log1 = new Series((n, s) =>
+        {
+            if (n == 0)
+                return Rational.Zero;
+
+            return Discrete.AlternateSign(new Rational(1, n), n + 1);
+        }, order: 1, degree: InfinityDegree);
 
         #endregion
 
@@ -369,6 +445,24 @@ namespace Wj.Math
         private int _degree;
         private Rational[] _cache;
         private int _cacheValidTo;
+
+        public Series(Series s, bool cache)
+        {
+            _compute = s._compute;
+            _order = s._order;
+            _degree = s._degree;
+
+            if (cache)
+            {
+                _cache = s._cache;
+                _cacheValidTo = s._cacheValidTo;
+            }
+            else
+            {
+                _cache = null;
+                _cacheValidTo = -1;
+            }
+        }
 
         public Series(Func<int, Series, Rational> compute, int order = 0, int degree = InfinityDegree, bool cache = false)
         {
@@ -385,11 +479,11 @@ namespace Wj.Math
         }
 
         /// <summary>
-        /// The order ord(f) of the series. If there exists an integer m such that a[m]!=0
-        /// and a[n]=0 for all n&lt;m, we define ord(f) = m. If f=0 then we define
-        /// ord(f)=infinity (represented here by InfiniteOrder).
+        /// The order ord(f(z)) of the series. If there exists an integer m such that a[m]!=0
+        /// and a[n]=0 for all n&lt;m, we define ord(f(z)) = m. If f(z)=0 then we define
+        /// ord(f(z))=infinity (represented here by InfiniteOrder).
         ///
-        /// If ord(f) is currently unknown, then a lower bound for ord(f) is returned.
+        /// If ord(f(z)) is currently unknown, then a lower bound for ord(f(z)) is returned.
         /// </summary>
         public int Order
         {
@@ -397,13 +491,13 @@ namespace Wj.Math
         }
 
         /// <summary>
-        /// The degree deg(f) of the series. If there exists an integer m such that a[m]!=0
-        /// and a[n]=0 for all n&gt;m, we define deg(f) = m. If f=0 then we define
-        /// deg(f)=-infinity (represented here by MinusInfinityDegree). If f has infinitely
-        /// many nonzero coefficients then we define deg(f)=infinity (represented here by
+        /// The degree deg(f(z)) of the series. If there exists an integer m such that a[m]!=0
+        /// and a[n]=0 for all n&gt;m, we define deg(f(z)) = m. If f(z)=0 then we define
+        /// deg(f(z))=-infinity (represented here by MinusInfinityDegree). If f(z) has infinitely
+        /// many nonzero coefficients then we define deg(f(z))=infinity (represented here by
         /// InfinityDegree).
         ///
-        /// If deg(f) is currently unknown, then an upper bound for deg(f) is returned.
+        /// If deg(f(z)) is currently unknown, then an upper bound for deg(f(z)) is returned.
         /// </summary>
         public int Degree
         {
@@ -420,48 +514,10 @@ namespace Wj.Math
             get { return this.At(n); }
         }
 
-        /// <summary>
-        /// Gets the coefficient a[n].
-        /// </summary>
-        /// <param name="n">The index of the coefficient.</param>
-        /// <returns>The coefficient a[n].</returns>
-        public Rational At(int n)
-        {
-            if (_cache != null)
-            {
-                if (_cacheValidTo >= n)
-                    return _cache[n];
-
-                Rational a = _compute(n, this);
-
-                if (_cache != null && _cacheValidTo == n - 1)
-                {
-                    EnsureCache(n);
-                    _cache[n] = a;
-                    _cacheValidTo = n;
-                }
-
-                return a;
-            }
-            else
-            {
-                return _compute(n, this);
-            }
-        }
-
-        /// <summary>
-        /// Determines whether f is a unit (invertible).
-        /// </summary>
-        /// <returns>Whether f is invertible.</returns>
-        public bool IsUnit()
-        {
-            return this.At(0) != Rational.Zero;
-        }
-
         public string ToString(int displayTerms)
         {
-            int low = _order;
-            int high = System.Math.Min(_degree, _order + displayTerms - 1);
+            int low = this.Order;
+            int high = System.Math.Min(this.Degree, this.Order + displayTerms - 1);
             StringBuilder sb = new StringBuilder();
 
             for (int i = low; i <= high; i++)
@@ -504,7 +560,7 @@ namespace Wj.Math
             else if (sb[0] == '+')
                 sb.Remove(0, 1);
 
-            if (high < _degree)
+            if (high < this.Degree)
                 sb.Append("+...");
 
             return sb.ToString();
@@ -513,6 +569,87 @@ namespace Wj.Math
         public override string ToString()
         {
             return this.ToString(DefaultDisplayTerms);
+        }
+
+        /// <summary>
+        /// Gets the coefficient a[n].
+        /// </summary>
+        /// <param name="n">The index of the coefficient.</param>
+        /// <returns>The coefficient a[n].</returns>
+        public Rational At(int n)
+        {
+            if (_cache != null)
+            {
+                if (_cacheValidTo >= n)
+                    return _cache[n];
+
+                Rational a = _compute(n, this);
+
+                if (_cache != null && _cacheValidTo == n - 1)
+                {
+                    EnsureCache(n);
+                    _cache[n] = a;
+                    _cacheValidTo = n;
+                }
+
+                return a;
+            }
+            else
+            {
+                return _compute(n, this);
+            }
+        }
+
+        /// <summary>
+        /// Determines whether f(z) is a unit (invertible).
+        /// </summary>
+        /// <returns>Whether f(z) is invertible.</returns>
+        public bool IsUnit()
+        {
+            return this[0] != Rational.Zero;
+        }
+
+        public Polynomial<Rational, RationalField> ToPolynomial(int degree)
+        {
+            return this.ToPolynomial(degree, Polynomial<Rational, RationalField>.X);
+        }
+
+        public Polynomial<Rational, RationalField> ToPolynomial(int degree, Polynomial<Rational, RationalField> x)
+        {
+            int low = this.Order;
+            int high = degree;
+
+            if (x.Terms.Length == 1)
+            {
+                var terms = new List<Term<Rational>>();
+                var leadingTerm = x.Terms[0];
+
+                for (int i = low; i <= high; i++)
+                {
+                    var term = new Term<Rational>(x.Degree * i, this[i] * Rational.Pow(leadingTerm.Coeff, i));
+                    Polynomial<Rational, RationalField>.Add(terms, term);
+                }
+
+                return new Polynomial<Rational, RationalField>(terms);
+            }
+            else
+            {
+                Polynomial<Rational, RationalField> result = Polynomial<Rational, RationalField>.Zero;
+                int i;
+
+                for (i = high; i >= low; i--)
+                {
+                    result *= x;
+                    result += this[i];
+                }
+
+                for (; i >= 0; i--)
+                {
+                    result *= x;
+                }
+
+                return result;
+            }
         }
 
         #region Cache
@@ -552,22 +689,73 @@ namespace Wj.Math
 
         #endregion
 
-        #region Functions
+        #region Operations
+
+        /// <summary>
+        /// Generates the series f(g(z)), where g(z) has nonzero order.
+        /// </summary>
+        /// <param name="g">A series with nonzero order.</param>
+        /// <returns>The series f(g(z)).</returns>
+        public Series Compose(Series g)
+        {
+            if (g.IsUnit())
+                throw new ArgumentException("g must have nonzero order");
+
+            return new Series((n, s) =>
+            {
+                if (n == 0)
+                    return this[0];
+
+                int high = n;
+                Rational c = Rational.Zero;
+
+                if (high > this.Degree)
+                    high = this.Degree;
+
+                for (int i = 1; i <= high; i++)
+                {
+                    c += this[i] * PowCoefficient(g, i, n, true);
+                }
+
+                return c;
+            }, order: ExtendedMultiply(this.Order, g.Order), degree: ExtendedMultiply(this.Degree, g.Degree), cache: true);
+        }
+
+        /// <summary>
+        /// Generates the composition inverse of f(z), i.e. the series g(z) such that
+        /// f(g(z)) = z. f(z) must have order 1.
+        /// </summary>
+        /// <returns>The series g(z).</returns>
+        public Series CompositionInv()
+        {
+            if (this[0] != Rational.Zero || this[1] == Rational.Zero)
+                throw new InvalidOperationException("The series has no composition inverse.");
+
+            Series h = this.DivideZPow(1).Inv();
+
+            return new Series((n, s) =>
+            {
+                if (n == 0)
+                    return Rational.Zero;
+
+                return PowCoefficient(h, n, n - 1, false) / n;
+            }, order: 1, degree: this.Degree == 1 ? 1 : InfinityDegree);
+        }
 
         public Series Differentiate()
         {
             int order;
             int degree;
 
-            if (_order == 0)
+            if (this.Order == 0)
                 order = 0;
             else
-                order = ExtendedSubtract(_order, 1);
+                order = ExtendedSubtract(this.Order, 1);
 
-            if (_degree == 0)
+            if (this.Degree == 0)
                 degree = MinusInfinityDegree;
             else
-                degree = ExtendedSubtract(_degree, 1);
+                degree = ExtendedSubtract(this.Degree, 1);
 
             return new Series((n, s) => (n + 1) * this[n + 1], order: order, degree: degree);
         }
@@ -577,16 +765,16 @@ namespace Wj.Math
             return new Series((n, s) =>
             {
                 if (n == 0)
-                    return 0;
+                    return Rational.Zero;
                 else
                     return this[n - 1] / n;
-            }, order: ExtendedAdd(_order, 1), degree: ExtendedAdd(_degree, 1));
+            }, order: ExtendedAdd(this.Order, 1), degree: ExtendedAdd(this.Degree, 1));
         }
 
         public Series Inv()
         {
             // We have the following recursive formula for the coefficients b[n] of
-            // the multiplicative inverse f^-1:
+            // the multiplicative inverse f(z)^-1:
             //
             // b[0] = a[0]^-1
             // b[1] = -a[0]^-1(a[1]b[0])
@@ -616,8 +804,8 @@ namespace Wj.Math
                     int high = n;
                     Rational c = Rational.Zero;
 
-                    if (high > _degree)
-                        high = _degree;
+                    if (high > this.Degree)
+                        high = this.Degree;
 
                     for (int i = 1; i <= high; i++)
                     {
@@ -639,17 +827,95 @@ namespace Wj.Math
 
                     return c;
                 }
-            }, order: 0, degree: _degree != 0 ? InfinityDegree : 0, cache: true);
+            }, order: 0, degree: this.Degree != 0 ? InfinityDegree : 0, cache: true);
         }
 
+        /// <summary>
+        /// Generates the series f(z)^k.
+        /// </summary>
+        /// <param name="k">An integer.</param>
+        /// <returns>The series f(z)^k.</returns>
         public Series Pow(int k)
         {
             if (k == 0)
                 return One;
             else if (k > 0)
-                return new Series((n, s) => PowCoefficient(this, k, n), ExtendedMultiply(this.Order, k), ExtendedMultiply(this.Degree, k));
+                return new Series((n, s) => PowCoefficient(this, k, n), order: ExtendedMultiply(this.Order, k), degree: ExtendedMultiply(this.Degree, k), cache: true);
             else
                 return this.Pow(-k).Inv();
+        }
+
+        /// <summary>
+        /// Generates the series f(z^k).
+        /// </summary>
+        /// <param name="k">A positive integer.</param>
+        /// <returns>The series f(z^k).</returns>
+        public Series ComposeZPow(int k)
+        {
+            return new Series((n, s) =>
+            {
+                if (n % k == 0)
+                    return this[n / k];
+                else
+                    return Rational.Zero;
+            }, order: ExtendedMultiply(this.Order, k), degree: ExtendedMultiply(this.Degree, k));
+        }
+
+        /// <summary>
+        /// Generates the series z^(-k)f(z). Coefficients a[0],...,a[k-1] are discarded.
+        /// </summary>
+        /// <param name="k">A nonnegative integer.</param>
+        /// <returns>The series z^(-k)f(z).</returns>
+        public Series DivideZPow(int k)
+        {
+            int order;
+            int degree;
+
+            if (this.Order < k)
+                order = 0;
+            else
+                order = ExtendedSubtract(this.Order, k);
+
+            if (this.Degree < k)
+                degree = MinusInfinityDegree;
+            else
+                degree = ExtendedSubtract(this.Degree, k);
+
+            return new Series((n, s) => this[n + k], order: order, degree: degree);
+        }
+
+        /// <summary>
+        /// Generates the series z^kf(z).
+        /// </summary>
+        /// <param name="k">A nonnegative integer.</param>
+        /// <returns>The series z^kf(z).</returns>
+        public Series MultiplyZPow(int k)
+        {
+            return new Series((n, s) =>
+            {
+                if (n >= k)
+                    return this[n - k];
+                else
+                    return Rational.Zero;
+            }, order: ExtendedAdd(this.Order, k), degree: ExtendedAdd(this.Degree, k));
+        }
+
+        public Series Truncate(int degree)
+        {
+            int order;
+
+            if (this.Order > degree)
+                order = InfinityDegree;
+            else
+                order = System.Math.Min(this.Order, degree);
+
+            return new Series((n, s) =>
+            {
+                if (n <= degree)
+                    return this[n];
+                else
+                    return Rational.Zero;
+            }, order: order, degree: System.Math.Min(this.Degree, degree));
         }
 
         #endregion
