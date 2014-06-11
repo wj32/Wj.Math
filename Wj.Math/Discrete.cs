@@ -271,16 +271,21 @@ namespace Wj.Math
 
         #region Bernoulli Numbers and Euler Numbers
 
-        public static Rational Bernoulli(BigInteger m)
+        public static Rational Bernoulli(int m)
         {
-            Rational sum = 0;
+            Rational[] a = new Rational[m + 1];
 
-            for (BigInteger k = 0; k <= m; k++)
+            // Akiyama–Tanigawa algorithm
+
+            for (int i = 0; i <= m; i++)
             {
-                sum += AlternateSign(new Rational(Stirling2KF(m, k), k + 1), k);
+                a[i] = new Rational(1, i + 1);
+
+                for (int j = i; j >= 1; j--)
+                    a[j - 1] = j * (a[j - 1] - a[j]);
             }
 
-            return sum;
+            return a[0];
         }
 
         public static Polynomial<Rational, RationalField> Bernoulli(int n, Polynomial<Rational, RationalField> x)

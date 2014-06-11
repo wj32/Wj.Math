@@ -177,13 +177,21 @@ namespace Wj.Math
 
         public static Series Add(Series f, Rational k)
         {
+            Rational constant = f[0] + k;
+            int order;
+
+            if (constant == Rational.Zero)
+                order = System.Math.Max(f.Order, 1);
+            else
+                order = 0;
+
             return new Series((n, s) =>
             {
                 if (n == 0)
-                    return f[0] + k;
+                    return constant;
                 else
                     return f[n];
-            }, order: 0, degree: System.Math.Max(f.Degree, 0));
+            }, order: order, degree: System.Math.Max(f.Degree, 0));
         }
         public static Series operator +(Series f, Rational k)
         {
@@ -196,13 +204,21 @@ namespace Wj.Math
 
         public static Series Subtract(Series f, Rational k)
         {
+            Rational constant = f[0] - k;
+            int order;
+
+            if (constant == Rational.Zero)
+                order = System.Math.Max(f.Order, 1);
+            else
+                order = 0;
+
             return new Series((n, s) =>
             {
                 if (n == 0)
-                    return f[0] - k;
+                    return constant;
                 else
                     return f[n];
-            }, order: 0, degree: System.Math.Max(f.Degree, 0));
+            }, order: order, degree: System.Math.Max(f.Degree, 0));
         }
         public static Series operator -(Series f, Rational k)
         {
@@ -210,13 +226,21 @@ namespace Wj.Math
         }
         public static Series Subtract(Rational k, Series f)
         {
+            Rational constant = k - f[0];
+            int order;
+
+            if (constant == Rational.Zero)
+                order = System.Math.Max(f.Order, 1);
+            else
+                order = 0;
+
             return new Series((n, s) =>
             {
                 if (n == 0)
-                    return k - f[0];
+                    return constant;
                 else
                     return -f[n];
-            }, order: 0, degree: System.Math.Max(f.Degree, 0));
+            }, order: order, degree: System.Math.Max(f.Degree, 0));
         }
         public static Series operator -(Rational k, Series f)
         {
@@ -680,10 +704,10 @@ namespace Wj.Math
             }
         }
 
-        public void ComputeTo(int n)
+        public bool ComputeTo(int n)
         {
             if (_cache == null)
-                return;
+                return false;
 
             EnsureCache(n);
 
@@ -693,6 +717,8 @@ namespace Wj.Math
             }
 
             _cacheValidTo = n;
+
+            return true;
         }
 
         public bool IsComputedTo(int n)
@@ -751,7 +777,7 @@ namespace Wj.Math
                 if (n == 0)
                     return Rational.Zero;
 
-                return PowCoefficient(h, n, n - 1, false) / n;
+                return PowCoefficient(h, n, n - 1) / n;
             }, order: 1, degree: this.Degree == 1 ? 1 : InfinityDegree);
         }
 
@@ -810,12 +836,8 @@ namespace Wj.Math
                 if (n == 0)
                     return a0inv;
 
-                // Always use the recursive formula because it is much faster.
-                s.ComputeTo(n - 1);
-
-                //// If the previous terms have all been computed, use the recursive
-                //// formula. Otherwise, use the explicit formula.
-                //if (s.IsComputedTo(n - 1))
+                // Always prefer the recursive formula because it is much faster.
+                if (s.ComputeTo(n - 1))
                 {
                     int high = n;
                     Rational c = Rational.Zero;
@@ -830,19 +852,19 @@ namespace Wj.Math
 
                     return -a0inv * c;
                 }
-                //else
-                //{
-                //    Rational m = a0inv;
-                //    Rational c = Rational.Zero;
+                else
+                {
+                    Rational m = a0inv;
+                    Rational c = Rational.Zero;
 
-                //    for (int i = 1; i <= n; i++)
-                //    {
-                //        m *= -a0inv;
-                //        c += m * PowCoefficient(this, i, n, true);
-                //    }
+                    for (int i = 1; i <= n; i++)
+                    {
+                        m *= -a0inv;
+                        c += m * PowCoefficient(this, i, n, true);
+                    }
 
-                //    return c;
-                //}
+                    return c;
+                }
             }, order: 0, degree: this.Degree != 0 ? InfinityDegree : 0, cache: true);
         }
 
@@ -853,10 +875,15 @@ namespace Wj.Math
         /// <returns>The series f(z)^k.</returns>
         public Series Pow(int k)
         {
+            bool nonZeroOrder = false;
+
+            if (!this.IsUnit())
+                nonZeroOrder = true;
+
             if (k == 0)
                 return One;
             else if (k > 0)
-                return new Series((n, s) => PowCoefficient(this, k, n), order: ExtendedMultiply(this.Order, k), degree: ExtendedMultiply(this.Degree, k), cache: true);
+                return new Series((n, s) => PowCoefficient(this, k, n, nonZeroOrder), order: ExtendedMultiply(this.Order, k), degree: ExtendedMultiply(this.Degree, k), cache: true);
             else
                 return this.Pow(-k).Inv();
         }
@@ -868,13 +895,62 @@ namespace Wj.Math
         /// <returns>The series f(z^k).</returns>
         public Series ComposeZPow(int k)
         {
-            return new Series((n, s) =>
+            return ComposeZPow(Rational.One, k);
+        }
+
+        /// <summary>
+        /// Generates the series f(az^k).
+        /// </summary>
+        /// <param name="a">A rational.</param>
+        /// <param name="k">A positive integer.</param>
+        /// <returns>The series f(az^k).</returns>
+        public Series ComposeZPow(Rational a, int k)
+        {
+            if (a == Rational.Zero)
+                return Zero;
+
+            Func<int, Series, Rational> compute = (n, s) =>
             {
                 if (n % k == 0)
-                    return this[n / k];
+                    return this[n / k] * Rational.Pow(a, n / k);
                 else
                     return Rational.Zero;
-            }, order: ExtendedMultiply(this.Order, k), degree: ExtendedMultiply(this.Degree, k));
+            };
+
+            if (k == 1)
+            {
+                compute = (n, s) => this[n] * Rational.Pow(a, n);
+
+                if (a == Rational.One)
+                    return this;
+                else if (a == Rational.MinusOne)
+                    compute = (n, s) => Discrete.AlternateSign(this[n], n);
+            }
+            else
+            {
+                if (a == Rational.One)
+                {
+                    compute = (n, s) =>
+                    {
+                        if (n % k == 0)
+                            return this[n / k];
+                        else
+                            return Rational.Zero;
+                    };
+                }
+                else if (a == Rational.MinusOne)
+                {
+                    compute = (n, s) =>
+                    {
+                        if (n % k == 0)
+                            return Discrete.AlternateSign(this[n / k], n / k);
+                        else
+                            return Rational.Zero;
+                    };
+                }
+            }
+
+            return new Series(compute, order: ExtendedMultiply(this.Order, k), degree: ExtendedMultiply(this.Degree, k));
         }
 
         /// <summary>
